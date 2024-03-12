@@ -1,0 +1,208 @@
+// biblioteca
+#include<IRremote.h> //biblioteca para receptor
+
+//M0otor direito
+#def
+ine motor_direito_frente 5  // (motor da direita)gira no sentido  horário
+#define motor_direito_tras 6  // (motor da direita)gira no sentido anti horário
+
+// Motor esquerdo
+#define motor_esquerdo_frente 9    // (motor da esquerda)gira no sentido horário
+#define motor_esquerdo_tras 10   // (motor da esquerda)gira no sentido anti horári
+
+//sensores para detectar o adversario 
+#define sensor_da_direita  3
+#define sensor_meio 4
+#define sensor_da_esquerda 11
+
+//Receptor
+#define sensor_receptor 2
+IRrecv receptor(sensor_receptor);
+
+//Sensor Linha
+#define sensor_linha 14
+
+//Led Indicador
+#define led 12
+
+//Declaração de Variáveis
+int direita = 0;
+int esquerda = 0;
+int estado = 0;
+int sen_esq_val;
+int sen_meio_val;
+int sen_dir_val;
+int sen_linha_val;
+int valorLido = 0;
+/*
+ estado = 1 vai representar o estado pronto 
+ estado= 2 vai representar o estado start
+ estado =3 vai representar o estado stop
+*/
+
+/* codigo do controle de teste
+  4177981184 -> tecla azul (estado pronto) 
+  4194692864 -> tecla verde (estado start)
+  4211404544-> tecla vermelha (estado stop)
+*/
+
+/*codigo do controle do juiz 
+  128 ->tecla 1 (estado pronto)
+  129 ->tecla 2 (estado start)
+  130 ->tecla 3 (estado stop)
+*/
+void setup() {
+  
+  Serial.begin(9600);
+
+  pinMode(led, OUTPUT);
+  
+  pinMode(sensor_da_esquerda,INPUT);
+  pinMode(sensor_meio,INPUT);
+  pinMode(sensor_da_direita,INPUT);
+  pinMode(sensor_linha,INPUT);
+  
+  //motor_esquerdo
+  pinMode(motor_esquerdo_frente,OUTPUT);
+  pinMode(motor_esquerdo_tras,OUTPUT);
+  //motor direito
+  pinMode(motor_direito_frente,OUTPUT);
+  pinMode(motor_direito_tras,OUTPUT);
+  
+  receptor.enableIRIn();//iniciar o receptor
+}
+void loop() {
+  funcao_receptor();
+      
+    if(estado==1){ //Condição para chamar a funcao_pronto
+    
+      funcao_pronto();
+      estado=0;
+    } else if(estado==2){//Condição para chamar a funcao_start
+    
+      funcao_start();
+    } else if( estado==3){//Condição para chamar a funcao_stop
+        
+      funcao_stop();
+      estado=0;
+    }
+
+//Ir para frente, usar de base para saber quias portas usar
+  *//digitalWrite(motor_direito_tras,LOW);
+  *//digitalWrite(motor_esquerdo_tras,LOW);
+  *//digitalWrite(motor_direito_frente, HIGH);
+  *//digitalWrite(motor_esquerdo_frente, HIGH);
+}
+void funcao_receptor(){
+
+  if(receptor.decode()){
+    Serial.println("Recebeu IR:");
+    Serial.println(receptor.decodedIRData.decodedRawData,DEC);
+      switch(receptor.decodedIRData.decodedRawData){
+        case 128 : // codigo da tecla 1 do controle do juiz
+          estado=1;
+          break
+        case 4177981184 :
+          estado=1;
+          break;
+        case 129 :// codigo da tecla 2 do controle do juiz
+          estado=2;
+          break;
+        case 4194692864:
+          estado=2;
+          break;
+        case 130 :// codigo da tecla 3 do controle do juiz
+          estado=3;
+          break;
+        case 4211404544:
+          estado=3;
+          break;
+        default:
+          break;
+      }
+    Serial.println("Estado:");
+    Serial.println(estado);
+    delay(100);
+    receptor.resume(); // Receive the next value
+  }
+}
+
+void funcao_pronto(){
+
+  digitalWrite(led, HIGH);   
+  delay(300);                       
+  digitalWrite(led, LOW);    
+
+}
+void funcao_start(){
+
+  sen_esq_val = digitalRead(sensor_da_esquerda);
+  sen_meio_val = digitalRead(sensor_meio);
+  sen_dir_val = digitalRead(sensor_da_direita);
+  sen_linha_val = digitalRead(sensor_linha);
+
+  
+  //Serial.println(sen_esq_val);
+  //Serial.println(sen_meio_val);
+  //Serial.println(sen_dir_val);
+  //Serial.println(sen_linha_val);
+
+  //Estratégia de Combate, Obs: O sensor reconhece como valor (0) a não detecção do objeto e valor (1) como a detecção do objeto.
+
+  if ((sen_esq_val == 0 && sen_meio_val == 1 && sen_dir_val == 1) || (sen_esq_val == 0 && sen_meio_val == 0 && sen_dir_val == 1)){
+    atacar_esquerda();
+  } else if ((sen_esq_val == 1 && sen_meio_val == 0 && sen_dir_val == 1 ) || (sen_esq_val == 0 && sen_meio_val == 0 && sen_dir_val == 0 )){
+    atacar_frente();
+
+  } else if ((sen_esq_val == 1 & sen_meio_val == 1 & sen_dir_val == 0 ) || (sen_esq_val == 1 & sen_meio_val == 0 & sen_dir_val == 0 )){
+    atacar_direita();
+  } else if (sen_linha_val == 0){
+    girar();
+  }
+  if (sen_esq_val == 1 & sen_meio_val == 1 & sen_dir_val == 1){
+    girar();
+  }
+}
+
+void atacar_direita(){
+  digitalWrite(motor_esquerdo_tras, LOW);
+  analogWrite(motor_direito_tras, 255);
+  analogWrite(motor_esquerdo_frente, 255);
+  digitalWrite(motor_direito_frente, LOW);
+}
+
+void atacar_esquerda(){
+  analogWrite(motor_esquerdo_tras, 255);
+  digitalWrite(motor_direito_tras, LOW);
+  digitalWrite(motor_esquerdo_frente, LOW);
+  analogWrite(motor_direito_frente, 255);
+}
+
+void atacar_frente(){
+  digitalWrite(motor_esquerdo_tras , LOW);
+  digitalWrite(motor_direito_tras, LOW);
+  analogWrite(motor_esquerdo_frente, 255);
+  analogWrite(motor_direito_frente, 255); 
+}
+
+void evitar_linha(){
+  analogWrite(motor_esquerdo_tras, 255);
+  analogWrite(motor_direito_tras, 255);
+  digitalWrite(motor_esquerdo_frente, LOW);
+  digitalWrite(motor_direito_frente, LOW);
+}
+void funcao_stop(){
+
+  digitalWrite(led, HIGH);   
+  digitalWrite(motor_esquerdo_frente , LOW);
+  digitalWrite(motor_direito_frente, LOW);
+  digitalWrite(motor_esquerdo_tras, LOW);
+  digitalWrite(motor_direito_tras, LOW);
+  delay(300);
+}
+void girar(){
+  digitalWrite(motor_direito_tras,LOW);
+  analogWrite(motor_esquerdo_tras, 255);
+  analogWrite(motor_direito_frente, 50);
+  digitalWrite(motor_esquerdo_frente, LOW);
+}
